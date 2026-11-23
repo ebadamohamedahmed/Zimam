@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Zimam.Abstractions\Zimam.Abstractions.csproj">
+      <Private>false</Private>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </ProjectReference>
+  </ItemGroup>
+  <Target Name="CopyPlugin" AfterTargets="Build">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="..\Zimam.Host\bin\$(Configuration)\net10.0-windows\Plugins\" />
+  </Target>
+</Project>

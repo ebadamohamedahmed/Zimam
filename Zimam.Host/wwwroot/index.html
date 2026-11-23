@@ -1,0 +1,608 @@
+﻿<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <title>Zimam — Broadcast Control</title><link rel="icon" type="image/png" href="/logo.png">
+    <script src="/js/signalr.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #121216; color: #e0e0e0; display: flex; height: 100vh; }
+        .sidebar { width: 250px; background: #1a1a22; border-inline-end: 1px solid #2c2c38; padding: 18px 12px; display: flex; flex-direction: column; gap: 6px; }
+        .brand-row { display: flex; justify-content: space-between; align-items: center; margin: 0 6px 14px; }
+        .brand-row h2 { font-size: 19px; margin: 0; color: #00f5d4; letter-spacing: 1.5px; }
+        .lang-btn { background: #2c2c38; border: 1px solid #3f3f52; color: #00f5d4; padding: 4px 10px; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: bold; }
+        .lang-btn:hover { background: #3a3a4a; }
+        .section-lbl { font-size: 11px; color: #777; text-transform: uppercase; margin: 12px 8px 4px; letter-spacing: 1px; }
+        .nav-btn { background: transparent; border: none; color: #bbb; text-align: start; padding: 10px 12px; border-radius: 6px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: space-between; }
+        .nav-btn.active, .nav-btn:hover { background: #2a2a38; color: #fff; }
+        .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: #e63946; flex-shrink: 0; }
+        .dot.normal { background: #2a9d8f; }
+        .dot.warning { background: #e9c46a; }
+        .dot.critical { background: #e63946; }
+        .main { flex: 1; padding: 24px; overflow-y: auto; }
+        .tabs { display: flex; gap: 8px; border-bottom: 1px solid #2c2c38; padding-bottom: 12px; margin-bottom: 20px; }
+        .tab-btn { background: #1e1e26; border: 1px solid #333; color: #aaa; padding: 9px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; }
+        .tab-btn.active { background: #00b4d8; color: #111; border-color: #00b4d8; }
+        .card { background: #1e1e26; border: 1px solid #333; border-radius: 10px; padding: 20px; max-width: 580px; }
+        .card-wide { background: #1e1e26; border: 1px solid #333; border-radius: 10px; padding: 20px; max-width: 960px; }
+        .tc { font-family: 'Consolas', monospace; font-size: 32px; color: #00f5d4; text-align: center; background: #0a0a0c; padding: 14px; border-radius: 8px; margin: 12px 0; direction: ltr; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .btn { padding: 12px; border: none; border-radius: 6px; background: #2c2c38; color: #fff; font-weight: bold; cursor: pointer; font-size: 13px; }
+        .btn:hover { background: #3a3a4a; }
+        .btn-primary { background: #00b4d8; color: #111; }
+        .btn-take { background: #e63946; color: #fff; padding: 12px 26px; font-size: 15px; letter-spacing: 1px; }
+        .btn-take:hover { background: #ff4d5a; }
+        .btn-danger { background: #e63946; color: #fff; padding: 6px 12px; font-size: 12px; }
+        .btn-edit { background: #457b9d; color: #fff; padding: 6px 12px; font-size: 12px; margin-inline-end: 6px; }
+        .btn.play-active { background: #2a9d8f; }
+        .btn.rec-active { background: #e63946; }
+        .btn.stop-active { background: #e9c46a; color: #111; }
+        table { width: 100%; border-collapse: collapse; background: #1e1e26; border-radius: 8px; overflow: hidden; margin-top: 12px; }
+        th, td { padding: 10px 14px; border-bottom: 1px solid #2c2c38; text-align: start; font-size: 13px; }
+        th { background: #262632; color: #00f5d4; }
+        .alarm-1 { background: rgba(233, 196, 106, 0.15); color: #e9c46a; }
+        .alarm-2 { background: rgba(230, 57, 70, 0.2); color: #ff6b6b; }
+        .form-row { display: flex; gap: 10px; flex-wrap: wrap; background: #1e1e26; padding: 16px; border-radius: 8px; border: 1px solid #333; align-items: end; }
+        .field { display: flex; flex-direction: column; gap: 5px; }
+        .field label { font-size: 12px; color: #aaa; }
+        .field input, .field select { background: #121216; border: 1px solid #3a3a4a; color: #fff; padding: 8px 10px; border-radius: 5px; min-width: 145px; }
+        .slider-row { display: flex; align-items: center; gap: 12px; margin: 10px 0; }
+        .slider-row label { width: 120px; font-size: 13px; color: #ccc; }
+        .slider-row input[type=range] { flex: 1; }
+        .log-box { background: #0a0a0c; border: 1px solid #333; padding: 10px; border-radius: 6px; font-family: Consolas, monospace; font-size: 12px; color: #00f5d4; margin-top: 12px; min-height: 40px; direction: ltr; }
+
+        /* Router XY Panel Styles */
+        .xy-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; background: #121216; border: 1px solid #2c2c38; padding: 14px; border-radius: 8px; margin-bottom: 16px; }
+        .xy-readout { font-family: Consolas, monospace; font-size: 14px; color: #00f5d4; direction: ltr; }
+        .xy-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; margin-bottom: 18px; }
+        .xy-btn { padding: 10px 6px; border: 1px solid #333; border-radius: 6px; background: #262632; color: #ddd; cursor: pointer; font-weight: bold; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+        .xy-btn:hover { background: #343446; }
+        .xy-btn.dst-sel { background: #00b4d8; color: #111; border-color: #00f5d4; }
+        .xy-btn.src-sel { background: #2a9d8f; color: #fff; border-color: #00f5d4; }
+        .xy-btn.src-live { border-color: #e9c46a; box-shadow: inset 0 0 0 1px #e9c46a; }
+        .xy-sub { font-size: 10px; font-weight: normal; opacity: 0.85; font-family: Consolas, monospace; }
+        .salvo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        .salvo-btn { padding: 10px; border: 1px solid #4a3535; border-radius: 6px; background: #2d1f24; color: #ffb3b8; font-weight: bold; cursor: pointer; font-size: 12px; }
+        .salvo-btn:hover { background: #e63946; color: #fff; }
+        @media (max-width: 720px) { .xy-grid { grid-template-columns: repeat(4, 1fr); } .salvo-grid { grid-template-columns: repeat(2, 1fr); } }
+        .safe-btn { width: 100%; padding: 10px 12px; border-radius: 6px; border: 1px solid #2a9d8f; background: rgba(42,157,143,0.18); color: #2a9d8f; font-weight: bold; cursor: pointer; font-size: 12px; margin-bottom: 10px; }
+        .safe-btn.live { border-color: #e63946; background: rgba(230,57,70,0.2); color: #ff6b6b; }
+        .safe-banner { background: rgba(42,157,143,0.15); border: 1px solid #2a9d8f; color: #2a9d8f; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: bold; margin-bottom: 14px; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="brand-row">
+            <div style="display:flex; align-items:center; gap:8px;"><img src="/logo.png" alt="Zimam" style="width:28px; height:28px; border-radius:6px;"><h2 id="brand-title">ZIMAM</h2></div>
+            <button class="lang-btn" id="lang-toggle" onclick="toggleLang()">عربي</button>
+        </div>
+        <button id="safe-mode-btn" class="safe-btn" onclick="toggleSafeMode()">SAFE MODE: ON</button>
+        <div class="section-lbl" data-i18n="devices">Devices</div>
+        <div id="device-nav"></div>
+        <div class="section-lbl" style="margin-top:auto;" data-i18n="system">System</div>
+        <button class="nav-btn" id="nav-manager" onclick="selectView('manager')" data-i18n="deviceManager">Device Manager</button>
+    </div>
+
+    <div class="main" id="main-area"></div>
+
+    <script>
+        const i18n = {
+            en: {
+                brand: "ZIMAM", toggle: "عربي", devices: "Devices", system: "System",
+                deviceManager: "Device Manager", control: "Control", monitor: "Monitor", management: "Management",
+                online: "ONLINE", offline: "OFFLINE", status: "STATUS", slot: "SLOT", clip: "CLIP",
+                prev: "|<< PREV", stop: "STOP", next: "NEXT >>|", play: "PLAY", rec: "REC", slot1: "Slot 1", slot2: "Slot 2",
+                param: "Parameter", value: "Value", alarm: "Alarm", updated: "Last Updated",
+                alarms: ["Normal", "Warning", "Critical"],
+                rawConsole: "Raw Command Console", rawPlaceholder: "Enter ASCII command...", send: "Send",
+                refreshInfo: "Refresh Transport & Slot Info", recallPreset: "Recall Preset 1", ready: "Ready.",
+                deviceId: "Device ID", driverPlugin: "Driver Plugin", ipAddress: "IP Address", port: "Port",
+                saveConnect: "Save & Connect", actions: "Actions", edit: "Edit", del: "Delete",
+                errFields: "Please enter Device ID and IP Address.", confirmDel: "Delete device",
+                ftpManager: "FTP Clip Manager", refreshClips: "Refresh Clips", upload: "Upload",
+                loadingClips: "Loading clips from Slot", noClips: "No clips found.",
+                clipCol: "Clip", rename: "Rename", download: "Download",
+                renamePrompt: "Enter new clip name (keep extension):",
+                selectFileFirst: "Select a file to upload first.", uploading: "Uploading",
+                destinations: "Destinations", sources: "Sources", level: "Level", range: "Range",
+                take: "TAKE", query: "Query", salvos: "Salvos", salvo: "Salvo",
+                confirmSalvo: "Fire Salvo", routerTools: "Router Management",
+                destNum: "Dest #", salvoNum: "Salvo #", lockDest: "Lock Dest", unlockDest: "Unlock Dest", fireSalvo: "Fire Salvo", safeModeOn: "SAFE MODE (Monitor-Only)", safeModeOff: "LIVE CONTROL (Armed)", safeBanner: "SAFE MODE ACTIVE — All outgoing control commands are blocked.", confirmDisarm: "Disable Safe Mode and allow LIVE hardware control?"
+            },
+            ar: {
+                brand: "زمام", toggle: "EN", devices: "الأجهزة", system: "النظام",
+                deviceManager: "إدارة الأجهزة", control: "التحكم", monitor: "المراقبة", management: "الإدارة",
+                online: "متصل", offline: "غير متصل", status: "الحالة", slot: "القرص", clip: "المقطع",
+                prev: "السابق >>|", stop: "إيقاف", next: "|<< التالي", play: "تشغيل", rec: "تسجيل", slot1: "قرص 1", slot2: "قرص 2",
+                param: "المعامل", value: "القيمة", alarm: "التنبيه", updated: "آخر تحديث",
+                alarms: ["طبيعي", "تحذير", "حرج"],
+                rawConsole: "وحدة الأوامر المباشرة (Raw Console)", rawPlaceholder: "أدخل أمر ASCII...", send: "إرسال",
+                refreshInfo: "تحديث حالة التشغيل والأقراص", recallPreset: "استدعاء الإعداد 1 (Preset 1)", ready: "جاهز.",
+                deviceId: "معرّف الجهاز", driverPlugin: "المشغّل (Driver)", ipAddress: "عنوان IP", port: "المنفذ (Port)",
+                saveConnect: "حفظ واتصال", actions: "إجراءات", edit: "تعديل", del: "حذف",
+                errFields: "يرجى إدخال معرّف الجهاز وعنوان IP.", confirmDel: "هل تريد حذف الجهاز",
+                ftpManager: "إدارة مقاطع FTP", refreshClips: "تحديث المقاطع", upload: "رفع ملف",
+                loadingClips: "جاري تحميل المقاطع من قرص", noClips: "لا توجد مقاطع.",
+                clipCol: "المقطع", rename: "إعادة تسمية", download: "تنزيل",
+                renamePrompt: "أدخل الاسم الجديد للمقطع (مع الاحتفاظ بالامتداد):",
+                selectFileFirst: "يرجى اختيار ملف للرفع أولاً.", uploading: "جاري رفع",
+                destinations: "المخارج (Destinations)", sources: "المداخل (Sources)", level: "المستوى", range: "النطاق",
+                take: "تنفيذ (TAKE)", query: "استعلام", salvos: "السالفو (Salvos)", salvo: "سالفو",
+                confirmSalvo: "تشغيل السالفو رقم", routerTools: "إدارة الراوتر",
+                destNum: "رقم المخرج", salvoNum: "رقم السالفو", lockDest: "قفل المخرج", unlockDest: "فتح قفل المخرج", fireSalvo: "تشغيل السالفو", safeModeOn: "الوضع الآمن (مراقبة فقط)", safeModeOff: "التحكم المباشر (مُفعّل)", safeBanner: "الوضع الآمن مُفعّل — جميع أوامر التحكم الصادرة محظورة.", confirmDisarm: "هل تريد إيقاف الوضع الآمن وتفعيل التحكم المباشر بالأجهزة؟"
+            }
+        };
+
+        const defaultPorts = { "HyperDeck": 9993, "FOR-A_FA505": 50011, "Evertz_Quartz": 4000 };
+        let lang = localStorage.getItem("zimam_lang") || "en";
+        let configs = [];
+        let drivers = [];
+        const stateMap = {};
+        let currentView = "manager";
+        let currentPillar = "control";
+        let selectedFaCh = "CH1";
+
+        // Router XY Panel UI state
+        let routerLevel = "V";
+        let routerBank = 0; // 0 = 1..16, 1 = 17..32
+        let selectedDst = 1;
+        let selectedSrc = 1;
+
+        const tr = key => (i18n[lang] && i18n[lang][key]) || key;
+
+        function applyLanguage() {
+            document.documentElement.lang = lang;
+            document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+            document.getElementById("brand-title").innerText = tr("brand");
+            document.getElementById("lang-toggle").innerText = tr("toggle");
+            document.querySelectorAll("[data-i18n]").forEach(el => {
+                el.innerText = tr(el.getAttribute("data-i18n"));
+            });
+            updateSafeModeUI(); renderSidebar();
+            renderMain();
+        }
+
+        function toggleLang() {
+            lang = lang === "en" ? "ar" : "en";
+            localStorage.setItem("zimam_lang", lang);
+            applyLanguage();
+        }
+
+        const conn = (typeof signalR !== "undefined")
+            ? new signalR.HubConnectionBuilder().withUrl("/vsmhub").withAutomaticReconnect().build()
+            : { on: () => {}, start: () => Promise.resolve(), invoke: () => Promise.resolve() };
+
+        let safeMode = true;
+        function updateSafeModeUI() {
+            const btn = document.getElementById("safe-mode-btn");
+            if (!btn) return;
+            btn.classList.toggle("live", !safeMode);
+            btn.innerText = safeMode ? tr("safeModeOn") : tr("safeModeOff");
+        }
+        async function toggleSafeMode() {
+            if (safeMode && !confirm(tr("confirmDisarm"))) return;
+            await conn.invoke("SetSafeMode", !safeMode);
+        }
+        conn.on("SafeModeChanged", enabled => { safeMode = enabled; updateSafeModeUI(); renderMain(); });
+        conn.on("AvailableDrivers", list => { drivers = list; if (currentView === "manager") renderMain(); });
+        conn.on("DeviceConfigs", list => {
+            configs = list;
+            if (currentView !== "manager" && !configs.some(c => c.deviceId === currentView))
+                currentView = configs[0]?.deviceId || "manager";
+            else if (currentView === "manager" && configs.length > 0 && !document.getElementById("dev-id"))
+                currentView = configs[0].deviceId;
+            updateSafeModeUI(); renderSidebar();
+            renderMain();
+        });
+        conn.on("InitialState", list => {
+            Object.keys(stateMap).forEach(k => delete stateMap[k]);
+            list.forEach(p => stateMap[`${p.deviceId}:${p.paramId}`] = p);
+            updateSafeModeUI(); renderSidebar();
+            renderMain();
+        });
+        conn.on("ParameterUpdated", p => {
+            stateMap[`${p.deviceId}:${p.paramId}`] = p;
+            updateSafeModeUI(); renderSidebar();
+            if (currentView === p.deviceId || currentView === "manager") renderMain();
+        });
+
+        function getDeviceAlarmClass(devId) {
+            const params = Object.values(stateMap).filter(p => p.deviceId === devId);
+            if (params.some(p => p.alarm === 2)) return "critical";
+            if (params.some(p => p.alarm === 1)) return "warning";
+            return params.some(p => p.paramId === "CONNECTION" && p.value === "ONLINE") ? "normal" : "critical";
+        }
+
+        function renderSidebar() {
+            document.getElementById("device-nav").innerHTML = configs.map(c => `
+                <button class="nav-btn ${currentView === c.deviceId ? 'active' : ''}" onclick="selectView('${c.deviceId}')">
+                    <span>${c.deviceId}</span>
+                    <span class="dot ${getDeviceAlarmClass(c.deviceId)}"></span>
+                </button>
+            `).join('');
+            document.getElementById("nav-manager").classList.toggle("active", currentView === "manager");
+        }
+
+        function selectView(view) { currentView = view; renderSidebar(); renderMain(); }
+        function selectPillar(p) { currentPillar = p; renderMain(); }
+        function getVal(dev, param, fallback = "--") { return stateMap[`${dev}:${param}`]?.value ?? fallback; }
+
+        function renderMain() {
+            const area = document.getElementById("main-area");
+            if (currentView === "manager") { renderDeviceManager(area); return; }
+            const dev = configs.find(c => c.deviceId === currentView);
+            if (!dev) return;
+
+            const isOnline = getVal(dev.deviceId, "CONNECTION") === "ONLINE";
+            area.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <h2 style="margin:0;">${dev.deviceId} <span style="font-size:13px; color:#888;" dir="ltr">(${dev.driverType} — ${dev.ipAddress}:${dev.port})</span></h2>
+                    <span style="font-weight:bold; color:${isOnline ? '#2a9d8f' : '#e63946'}">${isOnline ? tr("online") : tr("offline")}</span>
+                </div>
+                <div class="tabs">
+                    <button class="tab-btn ${currentPillar === 'control' ? 'active' : ''}" onclick="selectPillar('control')">${tr("control")}</button>
+                    <button class="tab-btn ${currentPillar === 'monitor' ? 'active' : ''}" onclick="selectPillar('monitor')">${tr("monitor")}</button>
+                    <button class="tab-btn ${currentPillar === 'management' ? 'active' : ''}" onclick="selectPillar('management')">${tr("management")}</button>
+                </div>
+                ${safeMode ? `<div class="safe-banner">${tr("safeBanner")}</div>` : ""}<div id="pillar-body"></div>
+            `;
+
+            const body = document.getElementById("pillar-body");
+            if (currentPillar === "control") renderControlPillar(body, dev);
+            else if (currentPillar === "monitor") renderMonitorPillar(body, dev);
+            else renderManagementPillar(body, dev);
+        }
+
+        function renderControlPillar(body, dev) {
+            if (dev.driverType === "HyperDeck") {
+                const st = getVal(dev.deviceId, "STATUS", "--");
+                body.innerHTML = `
+                    <div class="card">
+                        <div class="tc">${getVal(dev.deviceId, "TIMECODE", "00:00:00:00")}</div>
+                        <div style="display:flex; justify-content:space-around; font-size:13px; color:#888; margin-bottom:16px;">
+                            <span>${tr("status")}: <b>${st}</b></span>
+                            <span>${tr("slot")}: <b>${getVal(dev.deviceId, "SLOT_ID", "-")}</b></span>
+                            <span>${tr("clip")}: <b>${getVal(dev.deviceId, "CLIP_ID", "-")}</b></span>
+                        </div>
+                        <div class="grid">
+                            <button class="btn" onclick="send('${dev.deviceId}','TRANSPORT','PREV')">${tr("prev")}</button>
+                            <button class="btn ${st === 'STOPPED' || st === 'PREVIEW' ? 'stop-active' : ''}" onclick="send('${dev.deviceId}','TRANSPORT','STOP')">${tr("stop")}</button>
+                            <button class="btn" onclick="send('${dev.deviceId}','TRANSPORT','NEXT')">${tr("next")}</button>
+                            <button class="btn ${st === 'PLAY' ? 'play-active' : ''}" onclick="send('${dev.deviceId}','TRANSPORT','PLAY')">${tr("play")}</button>
+                            <button class="btn ${st === 'RECORD' ? 'rec-active' : ''}" onclick="send('${dev.deviceId}','TRANSPORT','RECORD')">${tr("rec")}</button>
+                            <button class="btn" onclick="send('${dev.deviceId}','TRANSPORT','SLOT_1')">${tr("slot1")}</button>
+                        </div>
+                    </div>`;
+            } else if (dev.driverType === "FOR-A_FA505") {
+                const params = ["VIDEO_LEVEL", "BLACK_LEVEL", "CHROMA", "R_GAIN", "G_GAIN", "B_GAIN", "R_BLACK", "G_BLACK", "B_BLACK"];
+                body.innerHTML = `
+                    <div class="card">
+                        <div style="margin-bottom:14px; display:flex; gap:6px; flex-wrap:wrap;">
+                            ${["CH1", "CH2", "CH3", "CH4", "CH5"].map(ch =>
+                                `<button class="btn ${selectedFaCh === ch ? 'btn-primary' : ''}" style="padding:8px 14px;" onclick="selectedFaCh='${ch}';renderMain()">${ch}</button>`
+                            ).join('')}
+                        </div>
+                        ${params.map(p => `
+                            <div class="slider-row">
+                                <label>${p}</label>
+                                <input type="range" min="-100" max="100" value="${getVal(dev.deviceId, selectedFaCh + ':' + p, 0)}"
+                                       onchange="send('${dev.deviceId}','${selectedFaCh}:${p}', this.value)">
+                                <span style="width:40px; text-align:end; font-family:Consolas;">${getVal(dev.deviceId, selectedFaCh + ':' + p, 0)}</span>
+                            </div>
+                        `).join('')}
+                    </div>`;
+            } else if (dev.driverType === "Evertz_Quartz") {
+                const start = routerBank * 16 + 1;
+                const nums = Array.from({ length: 16 }, (_, i) => start + i);
+                const liveSrc = getVal(dev.deviceId, `DEST_${selectedDst}_${routerLevel}`, getVal(dev.deviceId, `DEST_${selectedDst}_V`, "--"));
+
+                body.innerHTML = `
+                    <div class="card-wide">
+                        <div class="xy-bar">
+                            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                <span style="font-size:12px; color:#888;">${tr("level")}:</span>
+                                ${["V", "A", "VA"].map(lv =>
+                                    `<button class="btn ${routerLevel === lv ? 'btn-primary' : ''}" style="padding:7px 12px;" onclick="routerLevel='${lv}';renderMain()">${lv}</button>`
+                                ).join('')}
+                                <span style="font-size:12px; color:#888; margin-inline-start:10px;">${tr("range")}:</span>
+                                <button class="btn ${routerBank === 0 ? 'btn-primary' : ''}" style="padding:7px 12px;" onclick="routerBank=0;renderMain()">1–16</button>
+                                <button class="btn ${routerBank === 1 ? 'btn-primary' : ''}" style="padding:7px 12px;" onclick="routerBank=1;renderMain()">17–32</button>
+                            </div>
+                            <div class="xy-readout">
+                                DST ${selectedDst} [LIVE: ${liveSrc}] &larr; SRC ${selectedSrc} (${routerLevel})
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <button class="btn" onclick="queryRouterDest('${dev.deviceId}', ${selectedDst})">${tr("query")}</button>
+                                <button class="btn btn-take" onclick="takeRoute('${dev.deviceId}')">${tr("take")}</button>
+                            </div>
+                        </div>
+
+                        <h4 style="margin:0 0 8px 0; color:#00f5d4;">${tr("destinations")}</h4>
+                        <div class="xy-grid">
+                            ${nums.map(n => {
+                                const cur = getVal(dev.deviceId, `DEST_${n}_${routerLevel}`, getVal(dev.deviceId, `DEST_${n}_V`, "-"));
+                                return `<button class="xy-btn ${selectedDst === n ? 'dst-sel' : ''}" onclick="selectRouterDst('${dev.deviceId}', ${n})">
+                                    <span>DST ${n}</span>
+                                    <span class="xy-sub">S:${cur}</span>
+                                </button>`;
+                            }).join('')}
+                        </div>
+
+                        <h4 style="margin:0 0 8px 0; color:#2a9d8f;">${tr("sources")}</h4>
+                        <div class="xy-grid">
+                            ${nums.map(n => {
+                                const isLive = String(liveSrc) === String(n);
+                                return `<button class="xy-btn ${selectedSrc === n ? 'src-sel' : ''} ${isLive ? 'src-live' : ''}" onclick="selectedSrc=${n};renderMain()">
+                                    <span>SRC ${n}</span>
+                                    <span class="xy-sub">${isLive ? 'LIVE' : '&nbsp;'}</span>
+                                </button>`;
+                            }).join('')}
+                        </div>
+
+                        <h4 style="margin:0 0 8px 0; color:#ffb3b8;">${tr("salvos")}</h4>
+                        <div class="salvo-grid">
+                            ${[1, 2, 3, 4, 5, 6, 7, 8].map(s =>
+                                `<button class="salvo-btn" onclick="fireRouterSalvo('${dev.deviceId}', ${s})">${tr("salvo")} ${s}</button>`
+                            ).join('')}
+                        </div>
+                        <div id="router-log" class="log-box">${tr("ready")}</div>
+                    </div>`;
+            }
+        }
+
+        function renderMonitorPillar(body, dev) {
+            const rows = Object.values(stateMap)
+                .filter(p => p.deviceId === dev.deviceId)
+                .sort((a, b) => b.alarm - a.alarm);
+            const alarms = tr("alarms");
+            body.innerHTML = `
+                <table>
+                    <thead><tr><th>${tr("param")}</th><th>${tr("value")}</th><th>${tr("alarm")}</th><th>${tr("updated")}</th></tr></thead>
+                    <tbody>
+                        ${rows.map(r => `<tr class="alarm-${r.alarm}">
+                            <td>${r.paramId}</td><td><b>${r.value}</b></td><td>${alarms[r.alarm] || alarms[0]}</td>
+                            <td dir="ltr">${new Date(r.lastUpdated).toLocaleTimeString()}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>`;
+        }
+
+        function renderManagementPillar(body, dev) {
+            body.innerHTML = `
+                <div class="card">
+                    <h4 style="margin-top:0;">${tr("rawConsole")}</h4>
+                    <div style="display:flex; gap:8px;">
+                        <input id="raw-cmd" placeholder="${tr("rawPlaceholder")}" dir="ltr" style="flex:1; background:#121216; border:1px solid #3a3a4a; color:#fff; padding:8px; border-radius:5px;">
+                        <button class="btn btn-primary" onclick="runMgmt('${dev.deviceId}','RAW',{command:document.getElementById('raw-cmd').value})">${tr("send")}</button>
+                    </div>
+                    ${dev.driverType === "HyperDeck" ? `
+                        <hr style="border-color:#2c2c38; margin:16px 0;">
+                        <button class="btn" onclick="runMgmt('${dev.deviceId}','REFRESH_INFO',{})">${tr("refreshInfo")}</button>
+                        <hr style="border-color:#2c2c38; margin:16px 0;">
+                        <h4 style="margin:0 0 10px 0;">${tr("ftpManager")}</h4>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
+                            <select id="ftp-slot" style="background:#121216; border:1px solid #3a3a4a; color:#fff; padding:8px; border-radius:5px;">
+                                <option value="1">${tr("slot1")}</option>
+                                <option value="2">${tr("slot2")}</option>
+                            </select>
+                            <button class="btn btn-primary" onclick="loadFtpClips('${dev.deviceId}')">${tr("refreshClips")}</button>
+                            <input type="file" id="ftp-upload-file" style="color:#aaa; font-size:12px;">
+                            <button class="btn" onclick="uploadFtpClip('${dev.deviceId}')">${tr("upload")}</button>
+                        </div>
+                        <div id="ftp-progress-wrap" style="display:none; margin:10px 0;">
+                            <div style="display:flex; justify-content:space-between; font-size:12px; color:#00f5d4; margin-bottom:4px;">
+                                <span id="ftp-progress-name" dir="ltr"></span>
+                                <span id="ftp-progress-pct" dir="ltr">0%</span>
+                            </div>
+                            <div style="background:#0a0a0c; border:1px solid #333; border-radius:6px; height:10px; overflow:hidden;">
+                                <div id="ftp-progress-bar" style="width:0%; height:100%; background:#00b4d8; transition:width 0.15s ease;"></div>
+                            </div>
+                        </div>
+                        <div id="ftp-clips-list" style="margin-top:8px;"></div>
+                    ` : ''}
+                    ${dev.driverType === "FOR-A_FA505" ? `
+                        <hr style="border-color:#2c2c38; margin:16px 0;">
+                        <button class="btn" onclick="runMgmt('${dev.deviceId}','RECALL_PRESET',{preset:'1'})">${tr("recallPreset")}</button>
+                    ` : ''}
+                    ${dev.driverType === "Evertz_Quartz" ? `
+                        <hr style="border-color:#2c2c38; margin:16px 0;">
+                        <h4 style="margin:0 0 10px 0;">${tr("routerTools")}</h4>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
+                            <input id="rtr-dest" type="number" min="1" value="1" dir="ltr" style="width:80px; background:#121216; border:1px solid #3a3a4a; color:#fff; padding:8px; border-radius:5px;" placeholder="${tr("destNum")}">
+                            <button class="btn" onclick="runMgmt('${dev.deviceId}','QUERY_DEST',{dest:document.getElementById('rtr-dest').value,level:routerLevel})">${tr("query")}</button>
+                            <button class="btn btn-danger" style="padding:10px 14px;" onclick="runMgmt('${dev.deviceId}','LOCK',{dest:document.getElementById('rtr-dest').value})">${tr("lockDest")}</button>
+                            <button class="btn" onclick="runMgmt('${dev.deviceId}','UNLOCK',{dest:document.getElementById('rtr-dest').value})">${tr("unlockDest")}</button>
+                        </div>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                            <input id="rtr-salvo" type="number" min="1" value="1" dir="ltr" style="width:80px; background:#121216; border:1px solid #3a3a4a; color:#fff; padding:8px; border-radius:5px;" placeholder="${tr("salvoNum")}">
+                            <button class="btn btn-primary" onclick="runMgmt('${dev.deviceId}','SALVO',{salvo:document.getElementById('rtr-salvo').value})">${tr("fireSalvo")}</button>
+                        </div>
+                    ` : ''}
+                    <div id="mgmt-log" class="log-box">${tr("ready")}</div>
+                </div>`;
+        }
+
+        function renderDeviceManager(area) {
+            area.innerHTML = `
+                <h2 style="margin-top:0;">${tr("deviceManager")}</h2>
+                <div class="form-row">
+                    <div class="field"><label>${tr("deviceId")}</label><input id="dev-id" dir="ltr" placeholder="ROUTER_01"></div>
+                    <div class="field"><label>${tr("driverPlugin")}</label>
+                        <select id="dev-driver" onchange="autoFillPort()">${drivers.map(d => `<option value="${d}">${d}</option>`).join('')}</select>
+                    </div>
+                    <div class="field"><label>${tr("ipAddress")}</label><input id="dev-ip" dir="ltr" placeholder="192.168.1.50"></div>
+                    <div class="field"><label>${tr("port")}</label><input id="dev-port" dir="ltr" type="number" value="9993" style="min-width:90px;"></div>
+                    <button class="btn btn-primary" onclick="saveDevice()">${tr("saveConnect")}</button>
+                </div>
+                <table>
+                    <thead><tr><th>${tr("deviceId")}</th><th>${tr("driverPlugin")}</th><th>${tr("ipAddress")}</th><th>${tr("port")}</th><th>${tr("status")}</th><th>${tr("actions")}</th></tr></thead>
+                    <tbody>
+                        ${configs.map(c => {
+                            const online = getVal(c.deviceId, "CONNECTION") === "ONLINE";
+                            return `<tr>
+                                <td><b>${c.deviceId}</b></td><td>${c.driverType}</td><td dir="ltr">${c.ipAddress}</td><td dir="ltr">${c.port}</td>
+                                <td><span class="dot ${getDeviceAlarmClass(c.deviceId)}"></span> ${online ? tr("online") : tr("offline")}</td>
+                                <td>
+                                    <button class="btn btn-edit" onclick="editDevice('${c.deviceId}')">${tr("edit")}</button>
+                                    <button class="btn btn-danger" onclick="deleteDevice('${c.deviceId}')">${tr("del")}</button>
+                                </td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>`;
+            autoFillPort();
+        }
+
+        function autoFillPort() {
+            const drv = document.getElementById("dev-driver")?.value;
+            const portEl = document.getElementById("dev-port");
+            if (drv && portEl && defaultPorts[drv]) portEl.value = defaultPorts[drv];
+        }
+
+        function editDevice(id) {
+            const c = configs.find(x => x.deviceId === id);
+            if (!c) return;
+            document.getElementById("dev-id").value = c.deviceId;
+            document.getElementById("dev-driver").value = c.driverType;
+            document.getElementById("dev-ip").value = c.ipAddress;
+            document.getElementById("dev-port").value = c.port;
+        }
+
+        async function saveDevice() {
+            const cfg = {
+                deviceId: document.getElementById("dev-id").value.trim(),
+                driverType: document.getElementById("dev-driver").value,
+                ipAddress: document.getElementById("dev-ip").value.trim(),
+                port: parseInt(document.getElementById("dev-port").value, 10) || 9993,
+                settings: {}
+            };
+            if (!cfg.deviceId || !cfg.ipAddress) return alert(tr("errFields"));
+            await conn.invoke("SaveDevice", cfg);
+        }
+
+        async function deleteDevice(id) { if (confirm(`${tr("confirmDel")} ${id}?`)) await conn.invoke("DeleteDevice", id); }
+        function send(dev, param, val) { conn.invoke("SetValue", dev, param, val.toString()); }
+
+        async function selectRouterDst(devId, dst) {
+            selectedDst = dst;
+            renderMain();
+            await queryRouterDest(devId, dst);
+        }
+
+        async function queryRouterDest(devId, dst) {
+            const res = await conn.invoke("ExecuteManagement", devId, "QUERY_DEST", { dest: String(dst), level: routerLevel });
+            const log = document.getElementById("router-log");
+            if (log) log.innerText = `[${res.success ? 'OK' : 'ERR'}] ${res.message}`;
+        }
+
+        async function takeRoute(devId) {
+            const val = `${routerLevel}:${selectedDst},${selectedSrc}`;
+            await conn.invoke("SetValue", devId, "ROUTE", val);
+            const log = document.getElementById("router-log");
+            if (log) log.innerText = `[TAKE] .S${routerLevel}${selectedDst},${selectedSrc}`;
+        }
+
+        async function fireRouterSalvo(devId, salvo) {
+            if (!confirm(`${tr("confirmSalvo")} ${salvo}?`)) return;
+            const res = await conn.invoke("ExecuteManagement", devId, "SALVO", { salvo: String(salvo) });
+            const log = document.getElementById("router-log");
+            if (log) log.innerText = `[${res.success ? 'OK' : 'ERR'}] ${res.message}`;
+        }
+
+        async function runMgmt(dev, action, args) {
+            const res = await conn.invoke("ExecuteManagement", dev, action, args);
+            const log = document.getElementById("mgmt-log");
+            if (log) log.innerText = `[${res.success ? 'OK' : 'ERR'}] ${res.message}`;
+        }
+
+        async function loadFtpClips(devId) {
+            const slot = document.getElementById("ftp-slot")?.value || "1";
+            const log = document.getElementById("mgmt-log");
+            if (log) log.innerText = `${tr("loadingClips")} ${slot}...`;
+            const res = await conn.invoke("ExecuteManagement", devId, "FTP_LIST", { slot });
+            if (log) log.innerText = `[${res.success ? 'OK' : 'ERR'}] ${res.message}`;
+            const box = document.getElementById("ftp-clips-list");
+            if (!box) return;
+            if (!res.success || !res.data || res.data.length === 0) {
+                box.innerHTML = `<p style="color:#777; font-size:12px;">${tr("noClips")}</p>`;
+                return;
+            }
+            box.innerHTML = `<table><thead><tr><th>${tr("clipCol")}</th><th>${tr("actions")}</th></tr></thead><tbody>` +
+                res.data.map(f => `<tr>
+                    <td dir="ltr">${f}</td>
+                    <td>
+                        <button class="btn btn-edit" onclick="renameFtpClip('${devId}','${slot}','${f.replace(/'/g, "\\'")}')">${tr("rename")}</button>
+                        <a class="btn btn-primary" style="text-decoration:none; padding:6px 12px; font-size:12px;"
+                           href="/api/hyperdeck/${encodeURIComponent(devId)}/download?slot=${slot}&file=${encodeURIComponent(f)}">${tr("download")}</a>
+                    </td>
+                </tr>`).join('') + `</tbody></table>`;
+        }
+
+        async function renameFtpClip(devId, slot, oldName) {
+            const newName = prompt(tr("renamePrompt"), oldName);
+            if (!newName || newName === oldName) return;
+            const res = await conn.invoke("ExecuteManagement", devId, "FTP_RENAME", { slot, oldName, newName });
+            const log = document.getElementById("mgmt-log");
+            if (log) log.innerText = `[${res.success ? 'OK' : 'ERR'}] ${res.message}`;
+            if (res.success) loadFtpClips(devId);
+        }
+
+        function uploadFtpClip(devId) {
+            const input = document.getElementById("ftp-upload-file");
+            const slot = document.getElementById("ftp-slot")?.value || "1";
+            const log = document.getElementById("mgmt-log");
+            const wrap = document.getElementById("ftp-progress-wrap");
+            const bar = document.getElementById("ftp-progress-bar");
+            const pctEl = document.getElementById("ftp-progress-pct");
+            const nameEl = document.getElementById("ftp-progress-name");
+
+            if (!input?.files?.length) return alert(tr("selectFileFirst"));
+
+            const file = input.files[0];
+            const formData = new FormData();
+            formData.append("file", file);
+
+            if (wrap) wrap.style.display = "block";
+            if (nameEl) nameEl.innerText = file.name;
+            if (bar) bar.style.width = "0%";
+            if (pctEl) pctEl.innerText = "0%";
+            if (log) log.innerText = `${tr("uploading")} ${file.name}...`;
+
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", `/api/hyperdeck/${encodeURIComponent(devId)}/upload?slot=${slot}`, true);
+
+            xhr.upload.onprogress = e => {
+                if (!e.lengthComputable) return;
+                const pct = Math.round((e.loaded / e.total) * 100);
+                if (bar) bar.style.width = pct + "%";
+                if (pctEl) pctEl.innerText = pct + "%";
+            };
+
+            xhr.onload = () => {
+                try {
+                    const res = JSON.parse(xhr.responseText);
+                    if (log) log.innerText = `[${res.success ? 'OK' : 'ERR'}] ${res.message}`;
+                    if (res.success) {
+                        if (bar) bar.style.width = "100%";
+                        if (pctEl) pctEl.innerText = "100%";
+                        loadFtpClips(devId);
+                    }
+                } catch {
+                    if (log) log.innerText = `[ERR] HTTP ${xhr.status}`;
+                }
+            };
+
+            xhr.onerror = () => {
+                if (log) log.innerText = "[ERR] Upload connection failed.";
+            };
+
+            xhr.send(formData);
+        }
+
+        applyLanguage();
+        conn.start().catch(console.error);
+    </script>
+</body>
+</html>
+
+
